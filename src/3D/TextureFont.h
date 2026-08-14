@@ -13,10 +13,7 @@
 #ifndef _TEXTURE_FONT_H_
 #define _TEXTURE_FONT_H_
 
-// Inherits from
 #include "ImageFont.h"
-
-// Common headers
 #include "bzfgl.h"
 #include "OpenGLGState.h"
 
@@ -27,23 +24,28 @@ public:
     virtual ~TextureFont();
 
     void build() override;
-    bool isBuilt() const override
-    {
-        return textureID != -1;
-    }
+    bool isBuilt() const override;
 
     void filter(bool dofilter) override;
     void drawString(float scale, GLfloat color[4], const char *str, int len) override;
+    float getStrLength(float scale, const char *str, int len) const override;
+    float getStrLength(float scale, const std::string &str) const override;
 
     void free() override;
 
 private:
+    struct TtfRuntime;
+
     void preLoadLists();
+    bool ensureTtf() const;
+    void drawTtf(float scale, GLfloat color[4], const char *str, int len);
+    float getTtfLength(float scale, const char *str, int len) const;
+    void clearTtfGlyphs();
 
-    unsigned int  listIDs[MAX_TEXTURE_FONT_CHARS];
-
-    int         textureID;
+    unsigned int listIDs[MAX_TEXTURE_FONT_CHARS];
+    int textureID;
     OpenGLGState gstate;
+    mutable TtfRuntime* ttf;
 };
 
 #endif //_TEXTURE_FONT_H_
