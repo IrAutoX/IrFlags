@@ -6,6 +6,7 @@ dist_l10n_DATA = \
 	bzflag_en_US_l33t.po	\
 	bzflag_en_US_redneck.po	\
 	bzflag_es.po	\
+	bzflag_fa.po	\
 	bzflag_fr.po	\
 	bzflag_it.po	\
 	bzflag_kg.po	\
