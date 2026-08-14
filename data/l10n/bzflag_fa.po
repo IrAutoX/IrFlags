@@ -1,0 +1,131 @@
+# IrFlags Persian locale
+# Expanded automatically from bzflag_xx.po by tools/generate_fa_locale.py
+
+msgid "xx"
+msgstr "fa"
+
+msgid "translator"
+msgstr "DeathAmir And IrAutoX"
+
+msgid "Join Game"
+msgstr "ورود به بازی"
+
+msgid "Find Server"
+msgstr "پیدا کردن سرور"
+
+msgid "Connect"
+msgstr "اتصال"
+
+msgid "Options"
+msgstr "تنظیمات"
+
+msgid "Help"
+msgstr "راهنما"
+
+msgid "Leave Game"
+msgstr "ترک بازی"
+
+msgid "Quit"
+msgstr "خروج"
+
+msgid "Really quit?"
+msgstr "واقعاً خارج می‌شوید؟"
+
+msgid "GUI Settings"
+msgstr "تنظیمات رابط کاربری"
+
+msgid "Display Settings"
+msgstr "تنظیمات نمایش"
+
+msgid "Audio Settings"
+msgstr "تنظیمات صدا"
+
+msgid "Input Settings"
+msgstr "تنظیمات ورودی"
+
+msgid "Key Mapping"
+msgstr "تنظیم کلیدها"
+
+msgid "Server:"
+msgstr "سرور:"
+
+msgid "Port:"
+msgstr "پورت:"
+
+msgid "Callsign:"
+msgstr "نام بازیکن:"
+
+msgid "Password:"
+msgstr "رمز عبور:"
+
+msgid "Team:"
+msgstr "تیم:"
+
+msgid "Automatic"
+msgstr "خودکار"
+
+msgid "Red Team"
+msgstr "تیم قرمز"
+
+msgid "Green Team"
+msgstr "تیم سبز"
+
+msgid "Blue Team"
+msgstr "تیم آبی"
+
+msgid "Purple Team"
+msgstr "تیم بنفش"
+
+msgid "Observer"
+msgstr "تماشاگر"
+
+msgid "Score"
+msgstr "امتیاز"
+
+msgid "Player"
+msgstr "بازیکن"
+
+msgid "Servers"
+msgstr "سرورها"
+
+msgid "Players"
+msgstr "بازیکنان"
+
+msgid "Capture the Flag"
+msgstr "تسخیر پرچم"
+
+msgid "Free for All"
+msgstr "همه علیه همه"
+
+msgid "Start"
+msgstr "شروع"
+
+msgid "GAME OVER"
+msgstr "پایان بازی"
+
+msgid "Ready"
+msgstr "آماده"
+
+msgid "Dead"
+msgstr "نابود"
+
+msgid "Server not found"
+msgstr "سرور پیدا نشد"
+
+msgid "Error connecting to server."
+msgstr "خطا در اتصال به سرور."
+
+msgid "Connection Established..."
+msgstr "اتصال برقرار شد..."
+
+msgid "Entering game..."
+msgstr "در حال ورود به بازی..."
+
+msgid "BZFlag version: "
+msgstr "نسخه IrFlags: "
+
+msgid "Author: Chris Schoeneman <crs23@bigfoot.com>"
+msgstr "سازنده IrFlags: DeathAmir And IrAutoX"
+
+msgid "Maintainer: Tim Riker <Tim@Rikers.org>"
+msgstr "توسعه IrFlags: DeathAmir And IrAutoX"
