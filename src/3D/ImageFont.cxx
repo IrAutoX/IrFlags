@@ -28,7 +28,6 @@ ImageFont::ImageFont()
         fontMetrics[i].charWidth = -1;
 
     size = -1;
-
     textureXSize = -1;
     textureYSize = -1;
     textureZStep = -1;
@@ -49,10 +48,8 @@ const char* ImageFont::getFaceName() const
     return faceName.c_str();
 }
 
-// keep a line counter for debugging
 static int line;
 
-/* read values in Key: Value form from font metrics (.fmt) files */
 bool readKeyInt(OSFile &file, std::string expectedLeft, int &retval, bool newfile=false)
 {
     if (newfile)
@@ -61,7 +58,6 @@ bool readKeyInt(OSFile &file, std::string expectedLeft, int &retval, bool newfil
     const int expsize = int(expectedLeft.size());
     std::string tmpBuf;
 
-    // allow for blank lines with native or foreign linebreaks, comment lines
     while (tmpBuf.size() == 0 || tmpBuf[0] == '#' || tmpBuf[0] == 10 || tmpBuf[0] == 13)
     {
         tmpBuf = file.readLine();
@@ -84,18 +80,15 @@ bool readKeyInt(OSFile &file, std::string expectedLeft, int &retval, bool newfil
     }
 }
 
-// read Char: "x" entry
 bool readLetter(OSFile &file, char expected)
 {
     const std::string expectedLeft = "Char:";
     const int expsize = int(expectedLeft.size());
     std::string tmpBuf;
 
-    // allow for blank lines with native or foreign linebreaks, comment lines
     while (tmpBuf.size() == 0 || tmpBuf[0] == '#' || tmpBuf[0] == 10 || tmpBuf[0] == 13)
     {
         tmpBuf = file.readLine();
-        // keep a line counter
         line++;
     }
 
@@ -106,8 +99,8 @@ bool readLetter(OSFile &file, char expected)
             return true;
         else
         {
-            logDebugMessage(2,"Unexpected character: %s, in font metrics file %s, line %d (expected \"%c\").\n",
-                            tmpBuf.c_str()+expsize, file.getFileName().c_str(), line, expected);
+            logDebugMessage(2,"Unexpected character in font metrics file %s, line %d.\n",
+                            file.getFileName().c_str(), line);
             return false;
         }
     }
@@ -144,7 +137,6 @@ bool ImageFont::load(OSFile &file)
     if (!readKeyInt(file, "TextureHeight", textureYSize)) return false;
     if (!readKeyInt(file, "TextZStep", textureZStep)) return false;
 
-    // clamp the maximum char count
     if (numberOfCharacters > MAX_TEXTURE_FONT_CHARS)
     {
         logDebugMessage(1,"Too many characters (%i) in %s.\n",
@@ -155,10 +147,7 @@ bool ImageFont::load(OSFile &file)
     int i;
     for (i = 0; i < numberOfCharacters; i++)
     {
-        // check character
-        if (!readLetter(file, i + 32)) return false;
-
-        // read metrics
+        if (!readLetter(file, static_cast<char>(i + 32))) return false;
         if (!readKeyInt(file, "InitialDist", fontMetrics[i].initialDist)) return false;
         if (!readKeyInt(file, "Width", fontMetrics[i].charWidth)) return false;
         if (!readKeyInt(file, "Whitespace", fontMetrics[i].whiteSpaceDist)) return false;
@@ -172,27 +161,23 @@ bool ImageFont::load(OSFile &file)
     }
 
     file.close();
-
     return (numberOfCharacters > 0);
 }
 
 float ImageFont::getStrLength(float scale, const char *str, int len) const
 {
     int charToUse = 0;
-
     float totalLen = 0;
 
     for (int i = 0; i < len; i++)
     {
-        if (str[i] < 32)
-            charToUse = 32;
-        else if (str[i] > numberOfCharacters + 32)
+        const unsigned int glyph = static_cast<unsigned char>(str[i]);
+        if (glyph < 32 || glyph >= static_cast<unsigned int>(numberOfCharacters + 32))
             charToUse = 32;
         else
-            charToUse = str[i];
+            charToUse = static_cast<int>(glyph);
 
         charToUse -= 32;
-
         totalLen += (float)(fontMetrics[charToUse].fullWidth);
     }
 
