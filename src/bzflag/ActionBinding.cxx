@@ -10,7 +10,6 @@
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-/* bzflag special common - 1st one */
 #include "common.h"
 
 #include <iostream>
@@ -51,12 +50,10 @@ ActionBinding::ActionBinding()
     wayToBindActions.insert(std::make_pair(std::string("toggle displayLabels"), press));
     wayToBindActions.insert(std::make_pair(std::string("destruct"), press));
 
-    // Movement keys
     wayToBindActions.insert(std::make_pair(std::string("turn left"), both));
     wayToBindActions.insert(std::make_pair(std::string("turn right"), both));
     wayToBindActions.insert(std::make_pair(std::string("drive forward"), both));
     wayToBindActions.insert(std::make_pair(std::string("drive reverse"), both));
-    // End movement keys
 
     wayToBindActions.insert(std::make_pair(std::string("roam cycle subject backward"), press));
     wayToBindActions.insert(std::make_pair(std::string("roam cycle subject forward"), press));
@@ -93,7 +90,7 @@ ActionBinding::ActionBinding()
     defaultBinding.insert(BindingTable::value_type("Left Mouse", "fire"));
     defaultBinding.insert(BindingTable::value_type("Enter", "fire"));
     defaultBinding.insert(BindingTable::value_type("Middle Mouse", "drop"));
-    defaultBinding.insert(BindingTable::value_type("Space", "drop"));
+    defaultBinding.insert(BindingTable::value_type("Space", "jump"));
     defaultBinding.insert(BindingTable::value_type("Right Mouse", "identify"));
     defaultBinding.insert(BindingTable::value_type("I", "identify"));
     defaultBinding.insert(BindingTable::value_type("Tab", "jump"));
@@ -121,12 +118,10 @@ ActionBinding::ActionBinding()
     defaultBinding.insert(BindingTable::value_type("L", "toggle displayLabels"));
     defaultBinding.insert(BindingTable::value_type("Delete", "destruct"));
 
-    // Default movement keys
     defaultBinding.insert(BindingTable::value_type("Left Arrow", "turn left"));
     defaultBinding.insert(BindingTable::value_type("Right Arrow", "turn right"));
     defaultBinding.insert(BindingTable::value_type("Up Arrow", "drive forward"));
     defaultBinding.insert(BindingTable::value_type("Down Arrow", "drive reverse"));
-    // End default movement keys
 
     defaultBinding.insert(BindingTable::value_type("Shift+Wheel Up", "radarZoom in"));
     defaultBinding.insert(BindingTable::value_type("Shift+Wheel Down", "radarZoom out"));
@@ -166,16 +161,12 @@ void ActionBinding::resetBindings()
 {
     BindingTable::const_iterator index;
 
-    for (index = bindingTable.begin();
-            index != bindingTable.end();
-            ++index)
+    for (index = bindingTable.begin(); index != bindingTable.end(); ++index)
         unbind(index->second, index->first);
 
     bindingTable = defaultBinding;
 
-    for (index = bindingTable.begin();
-            index != bindingTable.end();
-            ++index)
+    for (index = bindingTable.begin(); index != bindingTable.end(); ++index)
         bind(index->second, index->first);
 }
 
@@ -191,15 +182,13 @@ void ActionBinding::onScanCB(const std::string& name, bool,
     ActionBinding::instance().associate(name, cmd, false);
 }
 
-void ActionBinding::associate(std::string key,
-                              std::string action,
-                              bool  keyBind)
+void ActionBinding::associate(std::string key, std::string action, bool keyBind)
 {
     BindingTable::iterator index, next;
     if (!wayToBindActions.count(action))
         return;
     PressStatusBind newStatusBind = wayToBindActions[action];
-    for (index = bindingTable.lower_bound( key ); index != bindingTable.upper_bound( key ); index = next)
+    for (index = bindingTable.lower_bound(key); index != bindingTable.upper_bound(key); index = next)
     {
         next = index;
         ++next;
@@ -236,9 +225,7 @@ void ActionBinding::associate(std::string key,
 void ActionBinding::deassociate(std::string action)
 {
     BindingTable::iterator index, next;
-    for (index = bindingTable.begin();
-            index != bindingTable.end();
-            index = next)
+    for (index = bindingTable.begin(); index != bindingTable.end(); index = next)
     {
         next = index;
         ++next;
@@ -258,12 +245,12 @@ void ActionBinding::bind(std::string action, std::string key)
     {
         command = "bind \"" + key + "\" down \"" + action + "\"";
         CMDMGR.run(command);
-    };
+    }
     if (statusBind == release || statusBind == both)
     {
         command = "bind \"" + key + "\" up \"" + action + "\"";
         CMDMGR.run(command);
-    };
+    }
 }
 
 void ActionBinding::unbind(std::string action, std::string key)
@@ -274,12 +261,12 @@ void ActionBinding::unbind(std::string action, std::string key)
     {
         command = "unbind \"" + key + "\" down";
         CMDMGR.run(command);
-    };
+    }
     if (statusBind == release || statusBind == both)
     {
         command = "unbind \"" + key + "\" up";
         CMDMGR.run(command);
-    };
+    }
 }
 
 // Local Variables: ***
