@@ -114,20 +114,12 @@ void AresHandler::queryHost(const char *name)
         return;
     }
 
-    // launch the asynchronous query to look up this hostname
+    // Use the long-supported c-ares hostname API. This class stores an IPv4
+    // in_addr, so the legacy API is sufficient and remains compatible with
+    // the VC15 dependency bundle used by the BZFlag 2.4 Windows build.
     status = HbNPending;
-
-#if HAVE_ARES_GETADDRINFO
-    struct ares_addrinfo_hints hints;
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_INET;
-
-    ares_getaddrinfo(aresChannel, name, NULL, &hints, staticCallbackAddrInfo,
-                     (void *)this);
-#else
     ares_gethostbyname(aresChannel, name, AF_INET, staticCallback,
                        (void *)this);
-#endif
 }
 
 void AresHandler::staticCallback(void *arg, int callbackStatus,
@@ -143,7 +135,7 @@ void AresHandler::callback(int callbackStatus, struct hostent *hostent)
 
     const std::lock_guard<std::mutex> lock(callback_mutex);
 
-    if (callbackStatus != ARES_SUCCESS)
+    if (callbackStatus != ARES_SUCCESS || hostent == NULL)
     {
         logDebugMessage(1,"Player [%d] failed to resolve: error %d\n", index,
                         callbackStatus);
@@ -157,51 +149,15 @@ void AresHandler::callback(int callbackStatus, struct hostent *hostent)
     }
     else if (status == HbNPending)
     {
-        memcpy(&hostAddress, hostent->h_addr_list[0], sizeof(hostAddress));
-        status = HbNSucceeded;
-    }
-}
-
-#if HAVE_ARES_GETADDRINFO
-void AresHandler::staticCallbackAddrInfo(void *arg, int status,
-        int, struct ares_addrinfo *result)
-{
-    if (status != ARES_EDESTRUCTION)
-        ((AresHandler *)arg)->callbackAddrInfo(status, result);
-    ares_freeaddrinfo(result);
-}
-
-void AresHandler::callbackAddrInfo(int callbackStatus, struct ares_addrinfo *result)
-{
-    const std::lock_guard<std::mutex> lock(callback_mutex);
-
-    if (callbackStatus != ARES_SUCCESS || !result)
-    {
-        logDebugMessage(1,"Player [%d] failed to resolve: error %d\n", index,
-                        callbackStatus);
-        status = Failed;
-    }
-
-    if (status == HbNPending)
-    {
-        auto nodes = result->nodes;
-        if (nodes != nullptr)
+        if (hostent->h_addr_list && hostent->h_addr_list[0])
         {
-            struct sockaddr_in *ipv4 = (struct sockaddr_in *)nodes->ai_addr;
-
-            if (ipv4)
-            {
-                memcpy(&hostAddress, &ipv4->sin_addr, sizeof(hostAddress));
-                status = HbNSucceeded;
-            }
-            else
-                status = Failed;
+            memcpy(&hostAddress, hostent->h_addr_list[0], sizeof(hostAddress));
+            status = HbNSucceeded;
         }
         else
             status = Failed;
     }
 }
-#endif
 
 const char *AresHandler::getHostname()
 {
