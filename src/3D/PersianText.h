@@ -25,7 +25,9 @@ static const GlyphDef glyphs[] =
 {
     {0x0621,0xFE80,0,0,0,1,false,false},
     {0x0622,0xFE81,0xFE82,0,0,2,true,false},
+    {0x0623,0xFE83,0xFE84,0,0,2,true,false},
     {0x0624,0xFE85,0xFE86,0,0,2,true,false},
+    {0x0625,0xFE87,0xFE88,0,0,2,true,false},
     {0x0626,0xFE89,0xFE8A,0xFE8B,0xFE8C,4,true,true},
     {0x0627,0xFE8D,0xFE8E,0,0,2,true,false},
     {0x0628,0xFE8F,0xFE90,0xFE91,0xFE92,4,true,true},
@@ -56,13 +58,25 @@ static const GlyphDef glyphs[] =
     {0x0644,0xFEDD,0xFEDE,0xFEDF,0xFEE0,4,true,true},
     {0x0645,0xFEE1,0xFEE2,0xFEE3,0xFEE4,4,true,true},
     {0x0646,0xFEE5,0xFEE6,0xFEE7,0xFEE8,4,true,true},
-    {0x0648,0xFEED,0xFEEE,0,0,2,true,false},
     {0x0647,0xFEE9,0xFEEA,0xFEEB,0xFEEC,4,true,true},
-    {0x06CC,0xFBFC,0xFBFD,0xFBFE,0xFBFF,4,true,true}
+    {0x0648,0xFEED,0xFEEE,0,0,2,true,false},
+    {0x06CC,0xFBFC,0xFBFD,0xFBFE,0xFBFF,4,true,true},
+    {0x0649,0xFEEF,0xFEF0,0,0,2,true,false},
+    {0x0629,0xFE93,0xFE94,0,0,2,true,false}
 };
+
+inline std::uint32_t normalize(std::uint32_t cp)
+{
+    if (cp == 0x064A || cp == 0x0649)
+        return 0x06CC;
+    if (cp == 0x0643)
+        return 0x06A9;
+    return cp;
+}
 
 inline const GlyphDef* findGlyph(std::uint32_t cp)
 {
+    cp = normalize(cp);
     for (std::size_t i = 0; i < sizeof(glyphs)/sizeof(glyphs[0]); ++i)
         if (glyphs[i].base == cp)
             return &glyphs[i];
@@ -109,27 +123,35 @@ inline std::vector<std::uint32_t> decodeUtf8(const std::string& input)
         }
         else
         {
-            out.push_back('?');
+            out.push_back(0xFFFD);
             ++i;
         }
     }
     return out;
 }
 
-inline unsigned char glyphSlot(const GlyphDef* glyph, int form)
+inline void appendUtf8(std::string& out, std::uint32_t cp)
 {
-    unsigned int slot = 128;
-    for (std::size_t i = 0; i < sizeof(glyphs)/sizeof(glyphs[0]); ++i)
+    if (cp <= 0x7F)
+        out.push_back(static_cast<char>(cp));
+    else if (cp <= 0x7FF)
     {
-        if (&glyphs[i] == glyph)
-            break;
-        slot += glyphs[i].forms;
+        out.push_back(static_cast<char>(0xC0 | (cp >> 6)));
+        out.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
     }
-    if (glyph->forms == 1)
-        form = 0;
-    else if (glyph->forms == 2)
-        form = form == 1 || form == 3 ? 1 : 0;
-    return static_cast<unsigned char>(slot + static_cast<unsigned int>(form));
+    else if (cp <= 0xFFFF)
+    {
+        out.push_back(static_cast<char>(0xE0 | (cp >> 12)));
+        out.push_back(static_cast<char>(0x80 | ((cp >> 6) & 0x3F)));
+        out.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
+    }
+    else
+    {
+        out.push_back(static_cast<char>(0xF0 | (cp >> 18)));
+        out.push_back(static_cast<char>(0x80 | ((cp >> 12) & 0x3F)));
+        out.push_back(static_cast<char>(0x80 | ((cp >> 6) & 0x3F)));
+        out.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
+    }
 }
 
 inline bool joinAcross(const std::vector<std::uint32_t>& cps, std::size_t left,
@@ -142,44 +164,59 @@ inline bool joinAcross(const std::vector<std::uint32_t>& cps, std::size_t left,
     return a && b && a->joinsNext && b->joinsPrevious;
 }
 
-inline char asciiEquivalent(std::uint32_t cp)
+inline std::uint32_t shapedCodepoint(const GlyphDef* glyph, bool prev, bool next)
 {
-    if (cp < 128)
-        return static_cast<char>(cp);
-    if (cp >= 0x06F0 && cp <= 0x06F9)
-        return static_cast<char>('0' + (cp - 0x06F0));
-    if (cp >= 0x0660 && cp <= 0x0669)
-        return static_cast<char>('0' + (cp - 0x0660));
-    if (cp == 0x060C) return ',';
-    if (cp == 0x061B) return ';';
-    if (cp == 0x061F) return '?';
-    if (cp == 0x066A) return '%';
-    return '?';
+    if (!glyph)
+        return 0xFFFD;
+    if (glyph->forms == 1)
+        return glyph->isolated;
+    if (glyph->forms == 2)
+        return prev && glyph->finalForm ? glyph->finalForm : glyph->isolated;
+    if (prev && next && glyph->medial)
+        return glyph->medial;
+    if (prev && glyph->finalForm)
+        return glyph->finalForm;
+    if (next && glyph->initial)
+        return glyph->initial;
+    return glyph->isolated;
 }
 
-inline std::string prepareLine(const std::string& input)
+inline std::uint32_t mirror(std::uint32_t cp)
 {
-    const std::vector<std::uint32_t> raw = decodeUtf8(input);
-    std::vector<std::uint32_t> cps;
-    cps.reserve(raw.size());
-    bool hasPersian = false;
-    for (std::size_t i = 0; i < raw.size(); ++i)
-    {
-        if (isMark(raw[i]))
-            continue;
-        if (raw[i] == 0x200C || raw[i] == 0x200D)
-        {
-            cps.push_back(0x200C);
-            continue;
-        }
-        if (findGlyph(raw[i]))
-            hasPersian = true;
-        cps.push_back(raw[i]);
-    }
-    if (!hasPersian)
-        return input;
+    if (cp == '(') return ')';
+    if (cp == ')') return '(';
+    if (cp == '[') return ']';
+    if (cp == ']') return '[';
+    if (cp == '{') return '}';
+    if (cp == '}') return '{';
+    if (cp == '<') return '>';
+    if (cp == '>') return '<';
+    return cp;
+}
 
-    std::vector<std::string> units;
+inline std::vector<std::uint32_t> prepareLineCodepoints(const std::string& input)
+{
+    const std::vector<std::uint32_t> decoded = decodeUtf8(input);
+    std::vector<std::uint32_t> cps;
+    cps.reserve(decoded.size());
+    bool hasPersian = false;
+
+    for (std::size_t i = 0; i < decoded.size(); ++i)
+    {
+        std::uint32_t cp = normalize(decoded[i]);
+        if (isMark(cp))
+            continue;
+        if (cp == 0x200D)
+            cp = 0x200C;
+        if (findGlyph(cp))
+            hasPersian = true;
+        cps.push_back(cp);
+    }
+
+    if (!hasPersian)
+        return cps;
+
+    std::vector<std::vector<std::uint32_t> > units;
     for (std::size_t i = 0; i < cps.size();)
     {
         const GlyphDef* g = findGlyph(cps[i]);
@@ -191,28 +228,33 @@ inline std::string prepareLine(const std::string& input)
                 prev = joinAcross(cps, i-1, i);
             if (i + 1 < cps.size() && cps[i+1] != 0x200C)
                 next = joinAcross(cps, i, i+1);
-            const int form = prev && next ? 3 : (prev ? 1 : (next ? 2 : 0));
-            units.push_back(std::string(1, static_cast<char>(glyphSlot(g, form))));
+            std::vector<std::uint32_t> unit;
+            unit.push_back(shapedCodepoint(g, prev, next));
+            units.push_back(unit);
             ++i;
             continue;
         }
+
         if (cps[i] == 0x200C)
         {
             ++i;
             continue;
         }
+
         if (cps[i] == ' ' || cps[i] == '\t')
         {
-            units.push_back(" ");
+            std::vector<std::uint32_t> unit;
+            unit.push_back(cps[i]);
+            units.push_back(unit);
             ++i;
             continue;
         }
 
-        std::string ltr;
+        std::vector<std::uint32_t> ltr;
         while (i < cps.size() && !findGlyph(cps[i]) && cps[i] != 0x200C &&
                cps[i] != ' ' && cps[i] != '\t')
         {
-            ltr.push_back(asciiEquivalent(cps[i]));
+            ltr.push_back(cps[i]);
             ++i;
         }
         if (!ltr.empty())
@@ -220,31 +262,45 @@ inline std::string prepareLine(const std::string& input)
     }
 
     std::reverse(units.begin(), units.end());
-    std::string result;
+    std::vector<std::uint32_t> result;
     for (std::size_t i = 0; i < units.size(); ++i)
     {
-        if (units[i] == "(") result += ')';
-        else if (units[i] == ")") result += '(';
-        else if (units[i] == "[") result += ']';
-        else if (units[i] == "]") result += '[';
-        else result += units[i];
+        for (std::size_t j = 0; j < units[i].size(); ++j)
+        {
+            std::uint32_t cp = units[i][j];
+            if (units[i].size() == 1)
+                cp = mirror(cp);
+            result.push_back(cp);
+        }
+    }
+    return result;
+}
+
+inline std::vector<std::uint32_t> prepareCodepoints(const std::string& input)
+{
+    std::vector<std::uint32_t> result;
+    std::size_t begin = 0;
+    while (begin <= input.size())
+    {
+        const std::size_t end = input.find('\n', begin);
+        const std::string line = input.substr(begin,
+            end == std::string::npos ? std::string::npos : end - begin);
+        const std::vector<std::uint32_t> shaped = prepareLineCodepoints(line);
+        result.insert(result.end(), shaped.begin(), shaped.end());
+        if (end == std::string::npos)
+            break;
+        result.push_back('\n');
+        begin = end + 1;
     }
     return result;
 }
 
 inline std::string prepare(const std::string& input)
 {
+    const std::vector<std::uint32_t> cps = prepareCodepoints(input);
     std::string result;
-    std::size_t begin = 0;
-    while (begin <= input.size())
-    {
-        const std::size_t end = input.find('\n', begin);
-        result += prepareLine(input.substr(begin, end == std::string::npos ? std::string::npos : end - begin));
-        if (end == std::string::npos)
-            break;
-        result += '\n';
-        begin = end + 1;
-    }
+    for (std::size_t i = 0; i < cps.size(); ++i)
+        appendUtf8(result, cps[i]);
     return result;
 }
 }
