@@ -31,11 +31,15 @@ SDLJoystick::SDLJoystick() : joystickID(nullptr), joystickButtons(0), numHats(0)
     xAxis(0), yAxis(1), hasRumble(false)
 {
     SDL_SetHint(SDL_HINT_ACCELEROMETER_AS_JOYSTICK, "0");
+#ifdef SDL_HINT_JOYSTICK_HIDAPI_PS4_RUMBLE
     SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_PS4_RUMBLE, "1");
-#if SDL_VERSION_ATLEAST(2, 0, 16)
+#endif
+#ifdef SDL_HINT_JOYSTICK_HIDAPI_PS5_RUMBLE
     SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_PS5_RUMBLE, "1");
 #endif
+#ifdef SDL_HINT_JOYSTICK_HIDAPI_STEAM
     SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_STEAM, "1");
+#endif
 
     if (SDL_InitSubSystem(SDL_INIT_JOYSTICK) == -1)
     {
@@ -99,8 +103,10 @@ void            SDLJoystick::initJoystick(const char* joystickName)
     numHats = SDL_JoystickNumHats(joystickID);
 #if SDL_VERSION_ATLEAST(2, 0, 18)
     hasRumble = SDL_JoystickHasRumble(joystickID);
-#else
+#elif SDL_VERSION_ATLEAST(2, 0, 9)
     hasRumble = true;
+#else
+    hasRumble = false;
 #endif
 }
 
@@ -226,13 +232,19 @@ void            SDLJoystick::ffRumble(int count, float duration, float strong_mo
     if (!ffHasRumble())
         return;
 
+#if SDL_VERSION_ATLEAST(2, 0, 9)
     // Clamp the motor values from 0 to 1
     strong_motor = std::min(1.0f, std::max(0.0f, strong_motor));
     weak_motor = std::min(1.0f, std::max(0.0f, weak_motor));
 
     SDL_JoystickRumble(joystickID, (Uint16)(strong_motor*0xFFFF), (Uint16)(weak_motor*0xFFFF),
                        (Uint32)(duration*1000.0f*count));
-
+#else
+    (void)count;
+    (void)duration;
+    (void)strong_motor;
+    (void)weak_motor;
+#endif
 }
 
 // Local Variables: ***
