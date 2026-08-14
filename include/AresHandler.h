@@ -52,13 +52,8 @@ public:
     ResolutionStatus getStatus()
     {
         return status;
-    };
+    }
 private:
-#if HAVE_ARES_GETADDRINFO
-    static void staticCallbackAddrInfo(void *arg, int status,
-                                       int timeout, struct ares_addrinfo *result);
-    void      callbackAddrInfo(int status, struct ares_addrinfo *result);
-#endif
     static void   staticCallback(void *arg, int statusCallback, int timeouts,
                                  struct hostent *hostent);
     void      callback(int status, struct hostent *hostent);
