@@ -23,7 +23,7 @@
 #include "bzfgl.h"
 #include "OSFile.h"
 
-#define MAX_TEXTURE_FONT_CHARS  (128)
+#define MAX_TEXTURE_FONT_CHARS  (224)
 
 class ImageFont
 {
@@ -53,7 +53,7 @@ protected:
         int initialDist;
         int charWidth;
         int whiteSpaceDist;
-        int fullWidth; // initialDist + charWidth + whiteSpaceDist
+        int fullWidth;
         int startX;
         int endX;
         int startY;
@@ -70,7 +70,6 @@ protected:
     int         numberOfCharacters;
 
 private:
-    // don't copy me
     ImageFont(const ImageFont&);
     ImageFont &operator=(const ImageFont&);
 };
