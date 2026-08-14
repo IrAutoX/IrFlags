@@ -1,0 +1,154 @@
+name: IrFlags Persian Windows Release
+
+on:
+  push:
+    branches: ["2.4"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: irflags-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-windows:
+    runs-on: windows-2022
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install font tooling
+        shell: pwsh
+        run: python -m pip install --disable-pip-version-check pillow
+
+      - name: Fetch pinned Vazirmatn font and license
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force build-font | Out-Null
+          $base = "https://raw.githubusercontent.com/rastikerdar/vazirmatn/6e553e33489a8f9dfaccc76860a2e3f3c1e66de7"
+          Invoke-WebRequest "$base/fonts/ttf/Vazirmatn-Bold.ttf" -OutFile build-font/Vazirmatn-Bold.ttf
+          Invoke-WebRequest "$base/OFL.txt" -OutFile build-font/Vazirmatn-OFL.txt
+          if ((Get-Item build-font/Vazirmatn-Bold.ttf).Length -lt 50000) { throw "Vazirmatn download is invalid" }
+
+      - name: Generate Persian locale and RTL font atlases
+        shell: pwsh
+        run: |
+          python tools/generate_fa_locale.py data/l10n/bzflag_xx.po data/l10n/bzflag_fa.po
+          python tools/generate_persian_fonts.py build-font/Vazirmatn-Bold.ttf data/fonts
+          python tools/generate_irflags_title.py build-font/Vazirmatn-Bold.ttf data/title.png
+          Copy-Item build-font/Vazirmatn-OFL.txt data/fonts/Vazirmatn-OFL.txt -Force
+          $atlas = @(Get-ChildItem data/fonts -Filter "DejaVuSans*_*.*" | Where-Object { $_.Extension -in '.fmt','.png' })
+          if ($atlas.Count -lt 36) { throw "Persian font atlas generation incomplete: $($atlas.Count) files" }
+          $empty = Select-String -Path data/l10n/bzflag_fa.po -Pattern '^msgstr ""$'
+          if ($empty) { throw "Persian locale contains empty translations" }
+
+      - name: Download official BZFlag VC15 x86 dependencies
+        shell: pwsh
+        run: |
+          Invoke-WebRequest "https://github.com/BZFlag-Dev/bzflag-dependencies/releases/download/v2.4.16/bzflag-dependencies-2.4.16-VC15-x86.7z" -OutFile deps.7z
+          New-Item -ItemType Directory -Force deps-extract | Out-Null
+          7z x deps.7z -odeps-extract -y | Out-Host
+          New-Item -ItemType Directory -Force dependencies | Out-Null
+          $rel = Get-ChildItem deps-extract -Directory -Recurse | Where-Object { $_.Name -eq 'windows-Release-x86' } | Select-Object -First 1
+          if (-not $rel) { throw "windows-Release-x86 dependency directory not found" }
+          Copy-Item $rel.FullName dependencies/windows-Release-x86 -Recurse -Force
+          $lic = Get-ChildItem deps-extract -Directory -Recurse | Where-Object { $_.Name -eq 'licenses' } | Select-Object -First 1
+          if ($lic) { Copy-Item $lic.FullName dependencies/licenses -Recurse -Force }
+          if (-not (Test-Path dependencies/windows-Release-x86/include)) { throw "Dependency headers missing" }
+          if (-not (Test-Path dependencies/windows-Release-x86/lib)) { throw "Dependency libraries missing" }
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x86
+
+      - name: Build IrFlags core
+        shell: pwsh
+        run: |
+          msbuild MSVC/bzflag.sln /m /p:Configuration=Release /p:Platform=Win32 /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0 /p:TreatWarningsAsErrors=false
+          if (-not (Test-Path bin_Release_Win32/bzflag.exe)) { throw "bzflag.exe was not produced" }
+
+      - name: Assemble IrFlags portable package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist/IrFlags | Out-Null
+          Copy-Item bin_Release_Win32/bzflag.exe dist/IrFlags/IrFlagsCore.exe
+          Get-ChildItem bin_Release_Win32 -Filter *.dll | Copy-Item -Destination dist/IrFlags -Force
+          if (Test-Path bin_Release_Win32/licenses) { Copy-Item bin_Release_Win32/licenses dist/IrFlags/licenses -Recurse -Force }
+          Copy-Item data dist/IrFlags/data -Recurse -Force
+          New-Item -ItemType Directory -Force dist/IrFlags/licenses | Out-Null
+          Copy-Item build-font/Vazirmatn-OFL.txt dist/IrFlags/licenses/Vazirmatn-OFL.txt -Force
+          Copy-Item COPYING dist/IrFlags/COPYING.txt
+          Copy-Item COPYING.LGPL dist/IrFlags/COPYING.LGPL.txt
+          Copy-Item COPYING.MPL dist/IrFlags/COPYING.MPL.txt
+          @'
+          IrFlags
+          Persian BZFlag client
+          Created by: DeathAmir And IrAutoX
+
+          Based on BZFlag 2.4.31. Original BZFlag copyright and LGPL/MPL licensing are preserved.
+          Persian UI font: Vazirmatn, licensed under SIL Open Font License 1.1.
+          '@ | Set-Content -Encoding utf8 dist/IrFlags/IRFLAGS-CREDITS.txt
+
+      - name: Build IrFlags Persian launcher
+        shell: pwsh
+        run: |
+          cl /nologo /O2 /EHsc /utf-8 /DUNICODE /D_UNICODE tools/windows/IrFlagsLauncher.cpp /link /SUBSYSTEM:WINDOWS /OUT:dist/IrFlags/IrFlags.exe user32.lib kernel32.lib
+          if (-not (Test-Path dist/IrFlags/IrFlags.exe)) { throw "IrFlags launcher was not produced" }
+
+      - name: Verify release payload
+        shell: pwsh
+        run: |
+          $required = @(
+            'dist/IrFlags/IrFlags.exe',
+            'dist/IrFlags/IrFlagsCore.exe',
+            'dist/IrFlags/data/l10n/bzflag_fa.po',
+            'dist/IrFlags/data/fonts/DejaVuSansCondensedBold_16.fmt',
+            'dist/IrFlags/data/fonts/DejaVuSansCondensedBold_16.png',
+            'dist/IrFlags/data/title.png',
+            'dist/IrFlags/licenses/Vazirmatn-OFL.txt',
+            'dist/IrFlags/IRFLAGS-CREDITS.txt'
+          )
+          foreach ($file in $required) { if (-not (Test-Path $file)) { throw "Missing $file" } }
+          $fa = Get-Content dist/IrFlags/data/l10n/bzflag_fa.po -Raw -Encoding utf8
+          if ($fa -notmatch 'ورود به بازی') { throw "Persian translations not present" }
+          if ($fa -notmatch 'DeathAmir And IrAutoX') { throw "IrFlags creator branding not present" }
+          $mz = [IO.File]::ReadAllBytes((Resolve-Path dist/IrFlags/IrFlagsCore.exe))[0..1]
+          if ($mz[0] -ne 0x4D -or $mz[1] -ne 0x5A) { throw "Core executable is not a valid PE file" }
+
+      - name: Create Windows ZIP
+        shell: pwsh
+        run: Compress-Archive -Path dist/IrFlags/* -DestinationPath IrFlags-Windows-Persian.zip -CompressionLevel Optimal -Force
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: IrFlags-Windows-Persian
+          path: IrFlags-Windows-Persian.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/2.4'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: irflags-fa-${{ github.run_number }}
+          name: IrFlags Persian Build ${{ github.run_number }}
+          body: |
+            IrFlags Persian Windows build by DeathAmir And IrAutoX.
+            Full Persian localization catalog, RTL Persian shaping, Vazirmatn font atlases, IrFlags branding, and original BZFlag gameplay.
+            Uses the stable Win32 target documented by the BZFlag 2.4 Windows build files.
+          files: IrFlags-Windows-Persian.zip
+          generate_release_notes: true
+          make_latest: true
