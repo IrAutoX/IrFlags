@@ -19,6 +19,7 @@
 #include "bzfio.h"
 #include "OpenGLGState.h"
 #include "TextureManager.h"
+#include "PersianText.h"
 
 TextureFont::TextureFont()
 {
@@ -39,10 +40,7 @@ TextureFont::~TextureFont()
     }
 }
 
-void TextureFont::build(void)
-{
-    preLoadLists();
-}
+void TextureFont::build(void) { preLoadLists(); }
 
 void TextureFont::preLoadLists()
 {
@@ -51,11 +49,9 @@ void TextureFont::preLoadLists()
         logDebugMessage(2,"Font %s does not have an associated texture name, not loading\n", texture.c_str());
         return;
     }
-
     TextureManager &tm = TextureManager::instance();
     std::string textureAndDir = "fonts/" + texture;
     textureID = tm.getTextureID(textureAndDir.c_str());
-
     if (textureID == -1)
     {
         logDebugMessage(2,"Font texture %s has invalid ID\n", texture.c_str());
@@ -81,24 +77,17 @@ void TextureFont::preLoadLists()
             const float endX   = (float)fontMetrics[i].endX / (float)textureXSize;
             const float startY = (float)fontMetrics[i].startY / (float)textureYSize;
             const float endY   = (float)fontMetrics[i].endY / (float)textureYSize;
-
             glBegin(GL_TRIANGLE_STRIP);
             glNormal3f(0.0f, 0.0f, 1.0f);
-            glTexCoord2f(startX, 1.0f - startY);
-            glVertex3f(initiX, fFontY, 0.0f);
-            glTexCoord2f(startX, 1.0f - endY);
-            glVertex3f(initiX, 0.0f, 0.0f);
-            glTexCoord2f(endX, 1.0f - startY);
-            glVertex3f(initiX + fFontX, fFontY, 0.0f);
-            glTexCoord2f(endX, 1.0f - endY);
-            glVertex3f(initiX + fFontX, 0.0f, 0.0f);
+            glTexCoord2f(startX, 1.0f - startY); glVertex3f(initiX, fFontY, 0.0f);
+            glTexCoord2f(startX, 1.0f - endY); glVertex3f(initiX, 0.0f, 0.0f);
+            glTexCoord2f(endX, 1.0f - startY); glVertex3f(initiX + fFontX, fFontY, 0.0f);
+            glTexCoord2f(endX, 1.0f - endY); glVertex3f(initiX + fFontX, 0.0f, 0.0f);
             glEnd();
-
             glTranslatef((float)(fontMetrics[i].fullWidth), 0.0f, 0.0f);
         }
         glEndList();
     }
-
     OpenGLGStateBuilder builder(gstate);
     builder.setTexture(textureID);
     builder.setBlending();
@@ -106,52 +95,33 @@ void TextureFont::preLoadLists()
     gstate = builder.getState();
 }
 
-void TextureFont::free(void)
-{
-    textureID = -1;
-}
+void TextureFont::free(void) { textureID = -1; }
 
 void TextureFont::filter(bool dofilter)
 {
     TextureManager &tm = TextureManager::instance();
     if (textureID >= 0)
-    {
-        const OpenGLTexture::Filter type = dofilter ? OpenGLTexture::Max : OpenGLTexture::Nearest;
-        tm.setTextureFilter(textureID, type);
-    }
+        tm.setTextureFilter(textureID, dofilter ? OpenGLTexture::Max : OpenGLTexture::Nearest);
 }
 
-void TextureFont::drawString(float scale, GLfloat color[4], const char *str,
-                             int len)
+void TextureFont::drawString(float scale, GLfloat color[4], const char *str, int len)
 {
-    if (!str)
-        return;
-
-    if (textureID == -1)
-        preLoadLists();
-    if (textureID == -1)
-        return;
-
+    if (!str || len <= 0) return;
+    const std::string prepared = IrFlagsPersian::prepare(std::string(str, static_cast<std::size_t>(len)));
+    if (textureID == -1) preLoadLists();
+    if (textureID == -1) return;
     gstate.setState();
     TextureManager &tm = TextureManager::instance();
-    if (!tm.bind(textureID))
-        return;
-
-    if (color[0] >= 0)
-        glColor4fv(color);
-
+    if (!tm.bind(textureID)) return;
+    if (color[0] >= 0) glColor4fv(color);
     glPushMatrix();
     glScalef(scale, scale, 1);
-
-    int charToUse = 0;
-    for (int i = 0; i < len; i++)
+    for (std::size_t i = 0; i < prepared.size(); i++)
     {
-        const unsigned int glyph = static_cast<unsigned char>(str[i]);
-        if (glyph < 32 || glyph >= static_cast<unsigned int>(numberOfCharacters + 32))
-            charToUse = 32;
-        else
+        const unsigned int glyph = static_cast<unsigned char>(prepared[i]);
+        int charToUse = 32;
+        if (glyph >= 32 && glyph < static_cast<unsigned int>(numberOfCharacters + 32))
             charToUse = static_cast<int>(glyph);
-
         charToUse -= 32;
         if (charToUse == 0)
             glTranslatef((float)(fontMetrics[charToUse].fullWidth), 0.0f, 0.0f);
@@ -159,8 +129,7 @@ void TextureFont::drawString(float scale, GLfloat color[4], const char *str,
             glCallList(listIDs[charToUse]);
     }
     glPopMatrix();
-    if (color[0] >= 0)
-        glColor4f(1, 1, 1, 1);
+    if (color[0] >= 0) glColor4f(1, 1, 1, 1);
 }
 
 // Local Variables: ***
