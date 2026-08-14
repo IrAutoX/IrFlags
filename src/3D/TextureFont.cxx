@@ -10,30 +10,20 @@
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-// BZFlag common header
 #include "common.h"
-
-// Interface headers
 #include "ImageFont.h"
 #include "TextureFont.h"
-
-// System headers
 #include <string>
 #include <string.h>
-
-// Common implementation headers
 #include "bzfgl.h"
 #include "bzfio.h"
 #include "OpenGLGState.h"
-
-// Local implementation headers
 #include "TextureManager.h"
 
 TextureFont::TextureFont()
 {
     for (int i = 0; i < MAX_TEXTURE_FONT_CHARS; i++)
         listIDs[i] = INVALID_GL_LIST_ID;
-
     textureID = -1;
 }
 
@@ -62,7 +52,6 @@ void TextureFont::preLoadLists()
         return;
     }
 
-    // load up the texture
     TextureManager &tm = TextureManager::instance();
     std::string textureAndDir = "fonts/" + texture;
     textureID = tm.getTextureID(textureAndDir.c_str());
@@ -73,8 +62,6 @@ void TextureFont::preLoadLists()
         return;
     }
     logDebugMessage(4,"Font %s (face %s) has texture ID %d\n", texture.c_str(), faceName.c_str(), textureID);
-
-    // fonts are usually pixel aligned
     tm.setTextureFilter(textureID, OpenGLTexture::Nearest);
 
     for (int i = 0; i < numberOfCharacters; i++)
@@ -82,55 +69,42 @@ void TextureFont::preLoadLists()
         if (listIDs[i] != INVALID_GL_LIST_ID)
         {
             glDeleteLists(listIDs[i], 1);
-            listIDs[i] = INVALID_GL_LIST_ID; // make it a habit
+            listIDs[i] = INVALID_GL_LIST_ID;
         }
         listIDs[i] = glGenLists(1);
         glNewList(listIDs[i], GL_COMPILE);
         {
             const float initiX = (float)fontMetrics[i].initialDist;
-            const float fFontY = (float)(fontMetrics[i].endY
-                                         - fontMetrics[i].startY);
-            const float fFontX = (float)(fontMetrics[i].endX
-                                         - fontMetrics[i].startX);
-            const float startX = (float)fontMetrics[i].startX
-                                 / (float)textureXSize;
-            const float endX   = (float)fontMetrics[i].endX
-                                 / (float)textureXSize;
-            const float startY = (float)fontMetrics[i].startY
-                                 / (float)textureYSize;
-            const float endY   = (float)fontMetrics[i].endY
-                                 / (float)textureYSize;
+            const float fFontY = (float)(fontMetrics[i].endY - fontMetrics[i].startY);
+            const float fFontX = (float)(fontMetrics[i].endX - fontMetrics[i].startX);
+            const float startX = (float)fontMetrics[i].startX / (float)textureXSize;
+            const float endX   = (float)fontMetrics[i].endX / (float)textureXSize;
+            const float startY = (float)fontMetrics[i].startY / (float)textureYSize;
+            const float endY   = (float)fontMetrics[i].endY / (float)textureYSize;
 
             glBegin(GL_TRIANGLE_STRIP);
             glNormal3f(0.0f, 0.0f, 1.0f);
             glTexCoord2f(startX, 1.0f - startY);
             glVertex3f(initiX, fFontY, 0.0f);
-
             glTexCoord2f(startX, 1.0f - endY);
             glVertex3f(initiX, 0.0f, 0.0f);
-
             glTexCoord2f(endX, 1.0f - startY);
             glVertex3f(initiX + fFontX, fFontY, 0.0f);
-
             glTexCoord2f(endX, 1.0f - endY);
             glVertex3f(initiX + fFontX, 0.0f, 0.0f);
             glEnd();
 
-            float fFontPostX = (float)(fontMetrics[i].fullWidth);
-
-            glTranslatef(fFontPostX, 0.0f, 0.0f);
+            glTranslatef((float)(fontMetrics[i].fullWidth), 0.0f, 0.0f);
         }
         glEndList();
     }
 
-    // create GState
     OpenGLGStateBuilder builder(gstate);
     builder.setTexture(textureID);
     builder.setBlending();
     builder.setAlphaFunc();
     gstate = builder.getState();
 }
-
 
 void TextureFont::free(void)
 {
@@ -142,8 +116,7 @@ void TextureFont::filter(bool dofilter)
     TextureManager &tm = TextureManager::instance();
     if (textureID >= 0)
     {
-        const OpenGLTexture::Filter type = dofilter ? OpenGLTexture::Max
-                                           : OpenGLTexture::Nearest;
+        const OpenGLTexture::Filter type = dofilter ? OpenGLTexture::Max : OpenGLTexture::Nearest;
         tm.setTextureFilter(textureID, type);
     }
 }
@@ -156,12 +129,10 @@ void TextureFont::drawString(float scale, GLfloat color[4], const char *str,
 
     if (textureID == -1)
         preLoadLists();
-
     if (textureID == -1)
         return;
 
     gstate.setState();
-
     TextureManager &tm = TextureManager::instance();
     if (!tm.bind(textureID))
         return;
@@ -175,16 +146,13 @@ void TextureFont::drawString(float scale, GLfloat color[4], const char *str,
     int charToUse = 0;
     for (int i = 0; i < len; i++)
     {
-        const char space = ' '; // decimal 32
-        if (str[i] < space)
-            charToUse = space;
-        else if (str[i] > (numberOfCharacters + space))
-            charToUse = space;
+        const unsigned int glyph = static_cast<unsigned char>(str[i]);
+        if (glyph < 32 || glyph >= static_cast<unsigned int>(numberOfCharacters + 32))
+            charToUse = 32;
         else
-            charToUse = str[i];
+            charToUse = static_cast<int>(glyph);
 
-        charToUse -= space;
-
+        charToUse -= 32;
         if (charToUse == 0)
             glTranslatef((float)(fontMetrics[charToUse].fullWidth), 0.0f, 0.0f);
         else
