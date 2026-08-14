@@ -9,7 +9,6 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 #pragma code_page(1252)
 
 /////////////////////////////////////////////////////////////////////////////
-//
 // Version
 //
 
@@ -30,13 +29,13 @@ BEGIN
     BEGIN
         BLOCK "040904b0"
         BEGIN
-            VALUE "CompanyName", "Tim Riker"
-            VALUE "FileDescription", "BZFlag"
+            VALUE "CompanyName", "DeathAmir And IrAutoX"
+            VALUE "FileDescription", "IrFlags - Persian BZFlag Client"
             VALUE "FileVersion", "2.4.31.0"
-            VALUE "InternalName", "version.rc"
-            VALUE "LegalCopyright", "Copyright (c) 1993-2025 Tim Riker"
-            VALUE "OriginalFilename", "version.rc"
-            VALUE "ProductName", "BZFlag"
+            VALUE "InternalName", "IrFlags"
+            VALUE "LegalCopyright", "BZFlag Copyright (c) 1993-2025 Tim Riker; IrFlags branding by DeathAmir And IrAutoX"
+            VALUE "OriginalFilename", "IrFlags.exe"
+            VALUE "ProductName", "IrFlags"
             VALUE "ProductVersion", "2.4.31.0"
         END
     END
@@ -46,18 +45,10 @@ BEGIN
     END
 END
 
-#endif    // English (United States) resources
+#endif
 /////////////////////////////////////////////////////////////////////////////
-
-
 
 #ifndef APSTUDIO_INVOKED
 /////////////////////////////////////////////////////////////////////////////
-//
-// Generated from the TEXTINCLUDE 1 resource.
-//
-
-
 /////////////////////////////////////////////////////////////////////////////
-#endif    // not APSTUDIO_INVOKED
-
+#endif
