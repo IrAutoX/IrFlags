@@ -56,10 +56,20 @@ jobs:
           Invoke-WebRequest "https://github.com/BZFlag-Dev/bzflag-dependencies/releases/download/v2.4.16/bzflag-dependencies-2.4.16-VC15-x86.7z" -OutFile deps.7z
           New-Item -ItemType Directory -Force deps-extract | Out-Null
           7z x deps.7z -odeps-extract -y | Out-Host
-          New-Item -ItemType Directory -Force dependencies | Out-Null
-          $rel = Get-ChildItem deps-extract -Directory -Recurse | Where-Object { $_.Name -eq 'windows-Release-x86' } | Select-Object -First 1
-          if (-not $rel) { throw "windows-Release-x86 dependency directory not found" }
-          Copy-Item $rel.FullName dependencies/windows-Release-x86 -Recurse -Force
+          New-Item -ItemType Directory -Force dependencies/windows-Release-x86 | Out-Null
+          $candidates = @()
+          if ((Test-Path deps-extract/include) -and (Test-Path deps-extract/lib)) { $candidates += Get-Item deps-extract }
+          $candidates += @(Get-ChildItem deps-extract -Directory -Recurse | Where-Object {
+            (Test-Path (Join-Path $_.FullName 'include')) -and (Test-Path (Join-Path $_.FullName 'lib'))
+          })
+          $rel = $candidates | Select-Object -First 1
+          if (-not $rel) {
+            Write-Host "Extracted dependency tree:"
+            Get-ChildItem deps-extract -Directory -Recurse | Select-Object -ExpandProperty FullName | Out-Host
+            throw "Could not locate dependency root containing include and lib"
+          }
+          Write-Host "Using dependency root: $($rel.FullName)"
+          Copy-Item (Join-Path $rel.FullName '*') dependencies/windows-Release-x86 -Recurse -Force
           $lic = Get-ChildItem deps-extract -Directory -Recurse | Where-Object { $_.Name -eq 'licenses' } | Select-Object -First 1
           if ($lic) { Copy-Item $lic.FullName dependencies/licenses -Recurse -Force }
           if (-not (Test-Path dependencies/windows-Release-x86/include)) { throw "Dependency headers missing" }
