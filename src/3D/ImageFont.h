@@ -42,8 +42,8 @@ public:
     virtual void filter(bool dofilter) = 0;
     virtual void drawString(float scale, GLfloat color[4], const char *str, int len) = 0;
 
-    float getStrLength(float scale, const char *str, int len) const;
-    float getStrLength(float scale, const std::string &str) const;
+    virtual float getStrLength(float scale, const char *str, int len) const;
+    virtual float getStrLength(float scale, const std::string &str) const;
 
     virtual void free() = 0;
 
