@@ -10,21 +10,15 @@
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-/* interface header */
 #include "MainMenu.h"
 
-/* common implementation headers */
-#include "TextureManager.h"
 #include "FontManager.h"
-
-/* local implementation headers */
 #include "HelpMenu.h"
 #include "HUDDialogStack.h"
 #include "LocalPlayer.h"
 #include "JoinMenu.h"
 #include "OptionsMenu.h"
 #include "QuitMenu.h"
-#include "HUDuiTextureLabel.h"
 #include "playing.h"
 #include "HUDui.h"
 
@@ -34,26 +28,21 @@ MainMenu::MainMenu() : HUDDialog(),
 {
 }
 
-void      MainMenu::createControls()
+void MainMenu::createControls()
 {
-    TextureManager &tm = TextureManager::instance();
     std::vector<HUDuiControl*>& listHUD = getControls();
     HUDuiControl* label;
-    HUDuiTextureLabel* textureLabel;
 
     for (unsigned int i = 0; i < listHUD.size(); i++)
         delete listHUD[i];
     listHUD.erase(listHUD.begin(), listHUD.end());
 
-    int title = tm.getTextureID("title");
+    // Do not use the inherited BZFlag title texture.  Keeping the product title
+    // as real text also guarantees it uses the same Unicode TTF path as the UI.
+    label = createLabel("IrFlags");
+    listHUD.push_back(label);
 
-    textureLabel = new HUDuiTextureLabel;
-    textureLabel->setFontFace(getFontFace());
-    textureLabel->setTexture(title);
-    textureLabel->setString("IrFlags");
-    listHUD.push_back(textureLabel);
-
-    label = createLabel("Up/Down arrows to move, Enter to select, Esc to dismiss");
+    label = createLabel("DeathAmir And IrAutoX");
     listHUD.push_back(label);
 
     join = createLabel("Join Game");
@@ -66,7 +55,7 @@ void      MainMenu::createControls()
     listHUD.push_back(help);
 
     LocalPlayer* myTank = LocalPlayer::getMyTank();
-    if (!(myTank == NULL))
+    if (myTank != NULL)
     {
         leave = createLabel("Leave Game");
         listHUD.push_back(leave);
@@ -102,17 +91,17 @@ MainMenu::~MainMenu()
     HelpMenu::done();
 }
 
-int         MainMenu::getFontFace()
+int MainMenu::getFontFace()
 {
     return FontManager::instance().getFaceID(BZDB.get("sansSerifFont"));
 }
 
-HUDuiDefaultKey*    MainMenu::getDefaultKey()
+HUDuiDefaultKey* MainMenu::getDefaultKey()
 {
     return MenuDefaultKey::getInstance();
 }
 
-void            MainMenu::execute()
+void MainMenu::execute()
 {
     HUDuiControl* _focus = HUDui::getFocus();
     if (_focus == join)
@@ -139,7 +128,7 @@ void            MainMenu::execute()
     }
 }
 
-void            MainMenu::resize(int _width, int _height)
+void MainMenu::resize(int _width, int _height)
 {
     HUDDialog::resize(_width, _height);
 
@@ -152,32 +141,28 @@ void            MainMenu::resize(int _width, int _height)
     std::vector<HUDuiControl*>& listHUD = getControls();
     HUDuiLabel* title = (HUDuiLabel*)listHUD[0];
     title->setFontSize(titleFontSize);
-    TextureManager &tm = TextureManager::instance();
-    float texHeight = (float)tm.getInfo(((HUDuiTextureLabel*)title)->getTexture()).y;
-    float texWidth = (float)tm.getInfo(((HUDuiTextureLabel*)title)->getTexture()).x;
-    float titleWidth = (texWidth / texHeight) * titleFontSize;
+    const float titleWidth = fm.getStrLength(fontFace, titleFontSize, title->getString());
     float x = 0.5f * ((float)_width - titleWidth);
     float y = (float)_height - titleFontSize * 1.5f;
     title->setPosition(x, y);
 
-    HUDuiLabel* hint = (HUDuiLabel*)listHUD[1];
-    hint->setFontSize(tinyFontSize);
-    const float hintWidth = fm.getStrLength(fontFace, tinyFontSize, hint->getString());
-    y -= 1.25f * fm.getStrHeight(fontFace, tinyFontSize, hint->getString());
-    hint->setPosition(0.5f * ((float)_width - hintWidth), y);
-    y -= 2.0f * fm.getStrHeight(fontFace, fontSize, hint->getString());
+    HUDuiLabel* creator = (HUDuiLabel*)listHUD[1];
+    creator->setFontSize(tinyFontSize);
+    const float creatorWidth = fm.getStrLength(fontFace, tinyFontSize, creator->getString());
+    y -= 1.25f * fm.getStrHeight(fontFace, tinyFontSize, creator->getString());
+    creator->setPosition(0.5f * ((float)_width - creatorWidth), y);
+    y -= 2.0f * fm.getStrHeight(fontFace, fontSize, creator->getString());
 
-    const float firstWidth
-        = fm.getStrLength(fontFace, fontSize,
-                          ((HUDuiLabel*)listHUD[2])->getString());
+    const float firstWidth = fm.getStrLength(fontFace, fontSize,
+                             ((HUDuiLabel*)listHUD[2])->getString());
     x = 0.5f * ((float)_width - firstWidth);
     const int count = listHUD.size();
     for (int i = 2; i < count; i++)
     {
-        HUDuiLabel* label = (HUDuiLabel*)listHUD[i];
-        label->setFontSize(fontSize);
-        label->setPosition(x, y);
-        y -= 1.3f * fm.getStrHeight(fontFace, fontSize, label->getString());
+        HUDuiLabel* item = (HUDuiLabel*)listHUD[i];
+        item->setFontSize(fontSize);
+        item->setPosition(x, y);
+        y -= 1.3f * fm.getStrHeight(fontFace, fontSize, item->getString());
     }
 }
 
