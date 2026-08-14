@@ -314,8 +314,16 @@ void TextureFont::drawTtf(float scale, GLfloat color[4], const char *str, int le
     glEnable(GL_TEXTURE_2D);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    if (color[0] >= 0)
+    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+
+    // FontManager uses a negative RGB triplet to mean "use the normal text color".
+    // The legacy atlas renderer happened to inherit a usable color from its GState,
+    // but a stand-alone TTF renderer cannot rely on the current OpenGL color.  Doing
+    // so made all text transparent/black on some drivers.  Make that state explicit.
+    if (color[0] >= 0.0f)
         glColor4fv(color);
+    else
+        glColor4f(1.0f, 1.0f, 1.0f, color[3] >= 0.0f ? color[3] : 1.0f);
 
     glPushMatrix();
     glScalef(scale, scale, 1.0f);
@@ -356,15 +364,28 @@ void TextureFont::drawTtf(float scale, GLfloat color[4], const char *str, int le
                                     &glyph.xoff, &glyph.yoff);
             if (bitmap && glyph.width > 0 && glyph.height > 0)
             {
+                // Use a conventional RGBA texture instead of GL_ALPHA.  The latter is
+                // a legacy internal format and produced invisible glyphs on some modern
+                // Windows OpenGL drivers.  White RGB lets GL_MODULATE apply UI colors;
+                // the stb coverage bitmap becomes the real alpha channel.
+                const std::size_t pixelCount = static_cast<std::size_t>(glyph.width) *
+                                               static_cast<std::size_t>(glyph.height);
+                std::vector<unsigned char> rgba(pixelCount * 4u, 255u);
+                for (std::size_t px = 0; px < pixelCount; ++px)
+                    rgba[(px * 4u) + 3u] = bitmap[px];
+
                 glGenTextures(1, &glyph.texture);
                 glBindTexture(GL_TEXTURE_2D, glyph.texture);
+                GLint previousUnpackAlignment = 4;
+                glGetIntegerv(GL_UNPACK_ALIGNMENT, &previousUnpackAlignment);
                 glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, glyph.width, glyph.height,
-                             0, GL_ALPHA, GL_UNSIGNED_BYTE, bitmap);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, glyph.width, glyph.height,
+                             0, GL_RGBA, GL_UNSIGNED_BYTE, &rgba[0]);
+                glPixelStorei(GL_UNPACK_ALIGNMENT, previousUnpackAlignment);
             }
             if (bitmap)
                 stbtt_FreeBitmap(bitmap, NULL);
